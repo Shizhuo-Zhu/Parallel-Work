@@ -42,9 +42,8 @@ func main() {
 			getResourceByID(c) // Directly call getResourceByID
 		})
 	} else {
-		// Routes for both functions
 		r.GET("/api/resources", getResources)
-		r.GET("/api/resources/:id", getResourceByID) // This route requires an ID
+		r.GET("/api/resources/:id", getResourceByID) 
 	}
 
 	if err := r.Run(":8080"); err != nil {
@@ -54,7 +53,6 @@ func main() {
 
 
 
-// In your backend, update the getResources function to handle region and type filtering
 func getResources(c *gin.Context) {
 	// Retrieve filters from query parameters for region and type
 	regionFilter := c.DefaultQuery("region", "")
@@ -75,7 +73,7 @@ func getResources(c *gin.Context) {
 
 	var allResources []Resource
 	var wg sync.WaitGroup
-	var mu sync.Mutex // To safely append to allResources in goroutines
+	var mu sync.Mutex 
 
 	for _, zone := range zoneList.Items {
 		wg.Add(1)
@@ -130,81 +128,14 @@ func getResources(c *gin.Context) {
 	c.JSON(http.StatusOK, allResources)
 }
 
-
-
-
-
-
-// func getResourceByID(c *gin.Context) {
-// 	resourceIDParam := c.Param("id")
-// 	// Use the command-line argument if the ID is passed from the command line
-// 	if resourceID == "" {
-// 		resourceID = resourceIDParam
-// 	}
-
-// 	if resourceID == "" {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Resource ID is required"})
-// 		return
-// 	}
-
-// 	svc, err := compute.NewService(c, option.WithCredentialsFile("application_default_credentials.json"))
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Unable to create GCP service: %v", err)})
-// 		return
-// 	}
-
-// 	projectID := "interns-test-2025"
-// 	zoneList, err := svc.Zones.List(projectID).Do()
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Unable to fetch zones: %v", err)})
-// 		return
-// 	}
-
-// 	// First try to find the instance
-// 	for _, zone := range zoneList.Items {
-// 		instance, err := svc.Instances.Get(projectID, zone.Name, resourceID).Do()
-// 		if err == nil {
-// 			resource := Resource{
-// 				Name:              instance.Name,
-// 				Zone:              extractZoneName(instance.Zone),
-// 				Type:              "instance",
-// 				Status:            instance.Status,
-// 				IPAddresses:       extractIP(instance.NetworkInterfaces),
-// 				CreationTimestamp: formatCreationTimestamp(instance.CreationTimestamp),
-// 			}
-// 			c.JSON(http.StatusOK, resource)
-// 			return
-// 		}
-// 	}
-
-// 	// Then try to find the disk
-// 	for _, zone := range zoneList.Items {
-// 		disk, err := svc.Disks.Get(projectID, zone.Name, resourceID).Do()
-// 		if err == nil {
-// 			resource := Resource{
-// 				Name:              disk.Name,
-// 				Zone:              extractZoneName(disk.Zone),
-// 				Type:              "disk",
-// 				Status:            disk.Status,
-// 				CreationTimestamp: formatCreationTimestamp(disk.CreationTimestamp),
-// 			}
-// 			c.JSON(http.StatusOK, resource)
-// 			return
-// 		}
-// 	}
-
-// 	c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found"})
-// }
-
 func getResourceByID(c *gin.Context) {
     resourceIDParam := c.Param("id")
-    // Use the command-line argument if the ID is passed from the command line
     if resourceID == "" {
         resourceID = resourceIDParam
     }
 
     if resourceID == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Resource ID is required"})
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Resource name is required"})
         return
     }
 
@@ -221,43 +152,60 @@ func getResourceByID(c *gin.Context) {
         return
     }
 
-    // First try to find the instance
+    var wg sync.WaitGroup
+    var mu sync.Mutex
+    var resources []Resource
+    var foundInstance, foundDisk bool
+
     for _, zone := range zoneList.Items {
-        instance, err := svc.Instances.Get(projectID, zone.Name, resourceID).Do()
-        if err == nil {
-            resource := Resource{
-                Name:              instance.Name,
-                Zone:              extractZoneName(instance.Zone),
-                Type:              "instance",
-                Status:            instance.Status,
-                IPAddresses:       extractIP(instance.NetworkInterfaces),
-                CreationTimestamp: formatCreationTimestamp(instance.CreationTimestamp),
+        wg.Add(2)
+
+        // fetch instance by id
+        go func(zone *compute.Zone) {
+            defer wg.Done()
+            instance, err := svc.Instances.Get(projectID, zone.Name, resourceID).Do()
+            if err == nil && !foundInstance {
+                mu.Lock()
+                instanceResource := Resource{
+                    Name:              instance.Name,
+                    Zone:              extractZoneName(instance.Zone),
+                    Type:              "instance",
+                    Status:            instance.Status,
+                    IPAddresses:       extractIP(instance.NetworkInterfaces),
+                    CreationTimestamp: formatCreationTimestamp(instance.CreationTimestamp),
+                }
+                resources = append(resources, instanceResource)
+                foundInstance = true
+                mu.Unlock()
             }
-            // Return the resource as an array
-            c.JSON(http.StatusOK, []Resource{resource})
-            return
-        }
+        }(zone)
+
+        // fetch disk by id
+        go func(zone *compute.Zone) {
+            defer wg.Done()
+            disk, err := svc.Disks.Get(projectID, zone.Name, resourceID).Do()
+            if err == nil && !foundDisk {
+                mu.Lock()
+                diskResource := Resource{
+                    Name:              disk.Name,
+                    Zone:              extractZoneName(disk.Zone),
+                    Type:              "disk",
+                    Status:            disk.Status,
+                    CreationTimestamp: formatCreationTimestamp(disk.CreationTimestamp),
+                }
+                resources = append(resources, diskResource)
+                foundDisk = true
+                mu.Unlock()
+            }
+        }(zone)
     }
 
-    // Then try to find the disk
-    for _, zone := range zoneList.Items {
-        disk, err := svc.Disks.Get(projectID, zone.Name, resourceID).Do()
-        if err == nil {
-            resource := Resource{
-                Name:              disk.Name,
-                Zone:              extractZoneName(disk.Zone),
-                Type:              "disk",
-                Status:            disk.Status,
-                CreationTimestamp: formatCreationTimestamp(disk.CreationTimestamp),
-            }
-            // Return the resource as an array
-            c.JSON(http.StatusOK, []Resource{resource})
-            return
-        }
-    }
+    wg.Wait()
 
-    c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found"})
+    c.JSON(http.StatusOK, resources) // Return the resources array
 }
+
+
 
 
 // Utility functions

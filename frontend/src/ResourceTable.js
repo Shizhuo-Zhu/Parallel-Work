@@ -5,24 +5,10 @@ const ResourceTable = () => {
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [resourceID, setResourceID] = useState(''); // State to hold the resource ID input
-  const [region, setRegion] = useState(''); // State to hold the region input
-  const [resourceType, setResourceType] = useState(''); // State to hold the type input
+  const [resourceID, setResourceID] = useState(''); 
+  const [region, setRegion] = useState(''); 
+  const [resourceType, setResourceType] = useState(''); 
 
-  // Function to fetch resources by ID
-  const fetchResourceByID = (id) => {
-    setLoading(true);
-    const apiUrl = `http://localhost:8080/api/resources/${id}`;
-    axios.get(apiUrl)
-      .then(response => {
-        setResources(response.data); // Set the response as the only resource in the list
-        setLoading(false);
-      })
-      .catch(error => {
-        setError('Failed to fetch resource by ID');
-        setLoading(false);
-      });
-  };
 
   // Function to fetch filtered resources based on region and type
   const fetchResourcesByRegionAndType = () => {
@@ -62,13 +48,10 @@ const ResourceTable = () => {
       });
   };
 
+
   useEffect(() => {
     fetchAllResources(); // Fetch all resources when the component mounts
   }, []);
-
-  const handleIDChange = (event) => {
-    setResourceID(event.target.value); // Update the resource ID as the user types
-  };
 
   const handleRegionChange = (event) => {
     setRegion(event.target.value); // Update the region as the user types
@@ -76,14 +59,6 @@ const ResourceTable = () => {
 
   const handleTypeChange = (event) => {
     setResourceType(event.target.value); // Update the type as the user types
-  };
-
-  const handleSearchByID = () => {
-    if (resourceID) {
-      fetchResourceByID(resourceID); // Fetch the resource by ID
-    } else {
-      setError('Please enter a valid resource ID');
-    }
   };
 
   const handleSearchByRegionAndType = () => {
@@ -101,15 +76,6 @@ const ResourceTable = () => {
   return (
     <div>
       {/* Input and button to fetch a resource by ID */}
-      <div>
-        <input
-          type="text"
-          value={resourceID}
-          onChange={handleIDChange}
-          placeholder="Enter ID"
-        />
-        <button onClick={handleSearchByID}>Get Resource by ID</button>
-      </div>
 
       {/* Input fields for region and type */}
       <div>
@@ -158,4 +124,3 @@ const ResourceTable = () => {
 };
 
 export default ResourceTable;
-
