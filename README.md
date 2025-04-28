@@ -1,25 +1,25 @@
 To get all resources:
 
-  cd ./backend // in backend folder
+    cd ./backend
   
-  go run main.go
+    go run main.go
   
-  open a new terminal
+    open a new terminal
   
-  cd ./frontend // in frontend folder
+    cd ./frontend
   
-  npm start
+    npm start
 
 To get resources by id:
 
-  cd ./backend
+    cd ./backend
   
-  go run main.go -id="instance_name"(e.g. go run main.go -id="instance-20250414-214402")
+    go run main.go -id="instance_name"(e.g. go run main.go -id="instance-20250414-214402")
   
-  open a new terminal
+    open a new terminal
   
-  cd ./frontend
+    cd ./frontend
   
-  npm start
+    npm start
   
   
