@@ -1,5 +1,6 @@
 To get all resources:
   cd ./backend // in backend folder
+  
   go run main.go
   open a new terminal
   cd ./frontend // in frontend folder
